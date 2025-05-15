@@ -250,6 +250,60 @@ Cov_to_text <- function(file_dir,region_split_file){
   return(cov)
 }
 
+
+
+#' Cov files to methlevel text files
+#'
+#' @param cov_file cov file path
+#' @param cov_file_data Site data
+#' @param chr_tmp Chromosome range
+#' @param region Chromosome physical fragments
+#'
+#' @return DNA methylation or chromatin accessibility matrix
+#' @export
+#'
+#' @examples
+Cov_to_methleveltext <- function(cov_file, cov_file_data, chr_tmp, region) {
+  # cov_file <- merge_CpG[1]
+  # cov_file_data <- fread(merge_CpG[1])
+  # chr_tmp <- chr_data
+
+  region_chr <- region %>% filter(chr == chr_tmp)
+  region_chr_paste <- sprintf("%s:%s-%s", region_chr$chr, region_chr$start, region_chr$end)
+  region_chr_paste <- as.data.frame(region_chr_paste)
+  colnames(region_chr_paste) <- "chr"
+
+  cov_data <- cov_file_data
+  colnames(cov_data) <- c("chr", "start", "end", "methlevel", "meth", "UNmeth")
+
+  cov_data_chr <- cov_data %>% filter(chr == chr_tmp)
+
+  # 生成列名
+  cov_file_name <- basename(cov_file)
+  split_result <- strsplit(cov_file_name, "\\.merged")[[1]][1]
+  col_names <- paste0(split_result, c(".site", ".methlevel"))
+
+  df_meth <- data.frame(matrix(nrow = nrow(region_chr_paste), ncol = 2))
+  rownames(df_meth) <- region_chr_paste$chr
+  colnames(df_meth) <- col_names
+
+  # 使用向量化操作代替嵌套循环
+  for (j in 1:nrow(region_chr)) {
+    # 过滤出当前 region_chr 相关的 cov_data_chr
+    filtered_cov_data <- cov_data_chr[cov_data_chr$start >= region_chr$start[j] & cov_data_chr$start <= region_chr$end[j], ]
+
+    # 计算 site_count 和 methlevel_sum
+    site_count <- nrow(filtered_cov_data)
+    methlevel_sum <- ifelse(site_count > 0, sum(filtered_cov_data$methlevel), NA)
+
+    # 赋值到 df_meth
+    df_meth[j, ] <- c(site_count, methlevel_sum)
+  }
+  return(df_meth)
+}
+
+
+
 #' Filtering of site information
 #'
 #' @param files Site information file path
